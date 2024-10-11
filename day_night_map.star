@@ -69,8 +69,12 @@ def main(config):
     else:
         tm = time.now().in_location(tz)
 
-    if config.bool("center_location"):
+    center_on = config.get("center_location")
+    if center_on == 'location':
         map_offset = -round(float(location.get("lng", "0")) * HALF_W / 180)
+    elif center_on == 'noon':
+        tau = get_tau(tm)
+        map_offset = -round(float(tau) * HALF_W / 180)
     else:
         map_offset = 0
 
@@ -190,12 +194,26 @@ def get_schema():
                 desc = "Location for the display of date/time.",
                 icon = "locationDot",
             ),
-            schema.Toggle(
+            schema.Dropdown(
                 id = "center_location",
-                name = "Center On Location",
-                desc = "Whether to center the map on the location.",
+                name = "Map Center",
+                desc = "How to center the map.",
                 icon = "compress",
-                default = False,
+                options = [
+                    schema.Option(
+                        display = "Zero degree meridian (default)",
+                        value = 'default',
+                    ),
+                    schema.Option(
+                        display = "Current Location",
+                        value = 'location',
+                    ),
+                    schema.Option(
+                        display = "Current Noon",
+                        value = 'noon',
+                    )
+                ],
+                default = 'default',
             ),
             schema.Dropdown(
                 id = "time_format",
@@ -227,6 +245,11 @@ def get_schema():
             ),
         ],
     )
+
+def get_tau(tm):
+    # this might actually be the antipode to tau? eh
+    tm = tm.in_location("UTC")
+    return 15 * (tm.hour + tm.minute / 60)
 
 def sunrise_plot(tm):
     tm = tm.in_location("UTC")
