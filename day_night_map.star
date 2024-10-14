@@ -69,16 +69,25 @@ def main(config):
     else:
         tm = time.now().in_location(tz)
 
-    center_on = config.get("center_location")
-    if center_on == 'location':
-        map_offset = -round(float(location.get("lng", "0")) * HALF_W / 180)
-    elif center_on == 'noon':
-        tau = get_tau(tm)
-        map_offset = -round(float(tau) * HALF_W / 180)
+    # this is more complex than expected because it's attempting to honour
+    # the old boolean/toggle center_location True setting
+    if not config.bool("center_location"):
+        center_on = config.get("center_location")
+        if center_on == 'location' or center_on == 'True':
+            print('using updated location')
+            map_offset = -round(float(location.get("lng", "0")) * HALF_W / 180)
+        elif center_on == 'noon':
+            print('using updated noon')
+            tau = get_tau(tm)
+            map_offset = -round(float(tau) * HALF_W / 180)
+        else:
+            print('using updated default')
+            map_offset = 0
     else:
-        map_offset = 0
+        print('using legacy location')
+        map_offset = -round(float(location.get("lng", "0")) * HALF_W / 180)
 
-    #print(map_offset)
+    print(map_offset)
 
     formatted_date = tm.format("Mon 2 Jan 2006")
     date_shadow = render.Row(
@@ -194,6 +203,13 @@ def get_schema():
                 desc = "Location for the display of date/time.",
                 icon = "locationDot",
             ),
+#             schema.Toggle(
+#                 id = "center_location",
+#                 name = "Center On Location",
+#                 desc = "Whether to center the map on the location.",
+#                 icon = "compress",
+#                 default = False,
+#             ),
             schema.Dropdown(
                 id = "center_location",
                 name = "Map Center",
@@ -202,7 +218,7 @@ def get_schema():
                 options = [
                     schema.Option(
                         display = "Zero degree meridian (default)",
-                        value = 'default',
+                        value = 'zero',
                     ),
                     schema.Option(
                         display = "Current Location",
@@ -213,7 +229,7 @@ def get_schema():
                         value = 'noon',
                     )
                 ],
-                default = 'default',
+                default = 'zero',
             ),
             schema.Dropdown(
                 id = "time_format",
