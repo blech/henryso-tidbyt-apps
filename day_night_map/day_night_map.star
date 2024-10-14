@@ -30,12 +30,12 @@ Author: Henry So, Jr.
 
 # See comments in the code for further attribution
 
-load("time.star", "time")
+load("encoding/base64.star", "base64")
+load("encoding/json.star", "json")
 load("math.star", "math")
 load("render.star", "render")
 load("schema.star", "schema")
-load("encoding/base64.star", "base64")
-load("encoding/json.star", "json")
+load("time.star", "time")
 
 WIDTH = 64
 HALF_W = WIDTH // 2
@@ -69,12 +69,25 @@ def main(config):
     else:
         tm = time.now().in_location(tz)
 
-    if config.bool("center_location"):
-        map_offset = -round(float(location.get("lng", "0")) * HALF_W / 180)
+    # this is more complex than expected because it's attempting to honour
+    # the old boolean/toggle center_location True setting
+    if not config.bool("center_location"):
+        center_on = config.get("center_location")
+        if center_on == 'location' or center_on == 'True':
+            print('using updated location')
+            map_offset = -round(float(location.get("lng", "0")) * HALF_W / 180)
+        elif center_on == 'noon':
+            print('using updated noon')
+            tau = get_tau(tm)
+            map_offset = -round(float(tau) * HALF_W / 180)
+        else:
+            print('using updated or existing default')
+            map_offset = 0
     else:
-        map_offset = 0
+        print('using legacy location')
+        map_offset = -round(float(location.get("lng", "0")) * HALF_W / 180)
 
-    #print(map_offset)
+    print(map_offset)
 
     formatted_date = tm.format("Mon 2 Jan 2006")
     date_shadow = render.Row(
@@ -188,14 +201,35 @@ def get_schema():
                 id = "location",
                 name = "Location",
                 desc = "Location for the display of date/time.",
-                icon = "place",
+                icon = "locationDot",
             ),
-            schema.Toggle(
+#             schema.Toggle(
+#                 id = "center_location",
+#                 name = "Center On Location",
+#                 desc = "Whether to center the map on the location.",
+#                 icon = "compress",
+#                 default = False,
+#             ),
+            schema.Dropdown(
                 id = "center_location",
-                name = "Center On Location",
-                desc = "Whether to center the map on the location.",
-                icon = "compressArrowsAlt",
-                default = False,
+                name = "Map Center",
+                desc = "How to center the map.",
+                icon = "compress",
+                options = [
+                    schema.Option(
+                        display = "Zero degree meridian (default)",
+                        value = 'zero',
+                    ),
+                    schema.Option(
+                        display = "Current Location",
+                        value = 'location',
+                    ),
+                    schema.Option(
+                        display = "Current Noon",
+                        value = 'noon',
+                    )
+                ],
+                default = 'zero',
             ),
             schema.Dropdown(
                 id = "time_format",
@@ -222,11 +256,16 @@ def get_schema():
                 id = "show_date",
                 name = "Date Overlay",
                 desc = "Whether the date overlay should be shown.",
-                icon = "calendarAll",
+                icon = "calendarCheck",
                 default = False,
             ),
         ],
     )
+
+def get_tau(tm):
+    # this might actually be the antipode to tau? eh
+    tm = tm.in_location("UTC")
+    return 15 * (tm.hour + tm.minute / 60)
 
 def sunrise_plot(tm):
     tm = tm.in_location("UTC")
