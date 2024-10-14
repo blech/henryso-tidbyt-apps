@@ -74,20 +74,16 @@ def main(config):
     if not config.bool("center_location"):
         center_on = config.get("center_location")
         if center_on == 'location' or center_on == 'True':
-            print('using updated location')
             map_offset = -round(float(location.get("lng", "0")) * HALF_W / 180)
         elif center_on == 'noon':
-            print('using updated noon')
             tau = get_tau(tm)
             map_offset = -round(float(tau) * HALF_W / 180)
         else:
-            print('using updated default')
             map_offset = 0
     else:
-        print('using legacy location')
         map_offset = -round(float(location.get("lng", "0")) * HALF_W / 180)
 
-    print(map_offset)
+    #print(map_offset)
 
     formatted_date = tm.format("Mon 2 Jan 2006")
     date_shadow = render.Row(
@@ -265,7 +261,8 @@ def get_schema():
 def get_tau(tm):
     # this might actually be the antipode to tau? eh
     tm = tm.in_location("UTC")
-    return 15 * (tm.hour + tm.minute / 60)
+    tau = 180 - 15 * (tm.hour + tm.minute / 60)
+    return tau
 
 def sunrise_plot(tm):
     tm = tm.in_location("UTC")
